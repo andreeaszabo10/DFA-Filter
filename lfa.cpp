@@ -1,4 +1,4 @@
-// implementare trie de aici https://www.geeksforgeeks.org/trie-insert-and-search/
+// https://www.geeksforgeeks.org/trie-insert-and-search/
 
 #include <iostream>
 #include <fstream>
@@ -9,90 +9,90 @@
 
 using namespace std;
 
-// structura de trie node luata de pe geeksforgeeks
+// TrieNode structure taken from geeksforgeeks
 struct TrieNode {
-    // flag-uri care imi arata daca nodul formeaza cuvinte acceptate/respinse
+    // flags indicating whether the node forms accepted/rejected words
     bool accept = false;
     bool reject = false;
     TrieNode* child[26];
 
     TrieNode() {
-        // initial toate sunt pe false
+        // initially all are set to false
         accept = false;
         reject = false;
-        // nu exista inca vreun copil al nodului
+        // no children for the node yet
         for (int i = 0; i < 26; i++) {
             child[i] = nullptr;
         }
     }
 };
 
-// functie de inserare in trie luata de pe geeksforgeeks
+// insert function for adding keys into the trie, taken from geeksforgeeks
 void insert_key(TrieNode* root, const string& key, bool accept, bool reject) {
     TrieNode* curr = root;
     
-    // pentru fiecare caracter din cuvant
+    // for each character in the word
     for (char c : key) {
-        // verific daca 
+        // if the child is nullptr, create a new TrieNode
         if (curr->child[c - 'a'] == nullptr) {
             curr->child[c - 'a'] = new TrieNode();
         }
         curr = curr->child[c - 'a'];
 
-        // verific ce tip de cuvant e si setez flag-ul corespunzator
-        // reject pe 1 daca e respins si accept pe 1 daca e 
+        // check the word type and set the corresponding flag
+        // set reject flag if it's a rejected word and accept flag if it's an accepted one
         if (accept) curr->accept = true;
         if (reject) curr->reject = true;
     }
 }
 
-// matricea de tranzitii initializata cu 1000(nr max de stari)
+// transition matrix initialized with 1000 (max states)
 vector<vector<int>> transitions(1000, vector<int>(26, 1));
-// numar pentru starea de accept, reject si initiala
+// variables for accept, reject, and initial states
 int accept_state = 0;
 int reject_state = 1;
 int initial_state = 2;
-// deja am starea de accept si reject numarate
+// already have the accept and reject states numbered
 int num_states = 2;
 unordered_map<TrieNode*, int> states;
 
-// functie de parcurgere a trie-ului
+// function to traverse the trie
 void check_nodes(TrieNode* root) {
-    // coada in care retin nodurile pentru care trebuie sa verific copiii
+    // queue to store nodes that need to be checked for children
     queue<TrieNode*> q;
-    // adaug root-ul in coada si ii asignez o stare
+    // add the root to the queue and assign it a state
     q.push(root);
     states[root] = num_states++;
 
-    // ca sa parcurg toate nodurile
+    // to traverse all nodes
     while (!q.empty()) {
         TrieNode* curr = q.front();
         q.pop();
 
-        // iau starea nodului curent
+        // get the current node's state
         int curr_state = states[curr];
 
-        // verific copiii nodului curent iterand prin toate literele alfabetului
+        // check the current node's children by iterating through the alphabet
         for (int i = 0; i < 26; i++) {
             if (curr->child[i] != nullptr) {
                 TrieNode* next = curr->child[i];
-                // daca nodul copil are ambele flag-uri pe 1, adaug o noua stare la afd,
-                // tranzitie de la nodul curent la copil si adaug copilul in coada
+                // if the child node has both accept and reject flags set, add a new state in AFD,
+                // create a transition from the current node to the child and add the child to the queue
                 if (next->accept && next->reject) {
                     states[next] = num_states++;
                     q.push(next);
                     transitions[curr_state][i] = states[next];
                     continue;
                 }
-                // nodul are doar flag-ul de accept deci e clar ca e acceptat cuvantul
+                // the child has only the accept flag, meaning the word is accepted
                 if (next->accept) {
-                    // adaug tranzitie spre starea de accept
+                    // create a transition to the accept state
                     transitions[curr_state][i] = accept_state;
                     continue;
                 }
-                // nodul are doar flag-ul de reject deci cuvantul e respins
+                // the child has only the reject flag, meaning the word is rejected
                 if (next->reject) {
-                    // adaug tranzitie spre starea de reject
+                    // create a transition to the reject state
                     transitions[curr_state][i] = reject_state;
                     continue;
                 }
@@ -105,21 +105,21 @@ int main() {
     ifstream fin("input.txt");
     ofstream fout("output.txt");
 
-    // citesc datele din fisierul de input
+    // read input data
     int cnt_accept, cnt_fail, len_string;
     fin >> cnt_accept >> cnt_fail >> len_string;
     
-    // creez root-ul
+    // create the root of the trie
     TrieNode* root = new TrieNode();
 
-    // citesc cuvintele din accept si le pun in trie, fiecare nod avand pe 1 flag-ul de accept
+    // read the accepted words and insert them into the trie, setting the accept flag for each node
     for (int i = 0; i < cnt_accept; i++) {
         string word;
         fin >> word;
         insert_key(root, word, true, false);
     }
 
-    // citesc cuvintele din reject si le pun in trie, fiecare nod avand pe 1 flag-ul de reject
+    // read the rejected words and insert them into the trie, setting the reject flag for each node
     for (int i = 0; i < cnt_fail; i++) {
         string word;
         fin >> word;
@@ -128,22 +128,21 @@ int main() {
 
     fin.close();
 
-    // fac ca orice tranzitie din starea de accept sa mearga tot in ea, la fel si cu reject
+    // ensure any transition from the accept state goes to itself, similarly for the reject state
     for (int i = 0; i < 26; i++) {
         transitions[accept_state][i] = accept_state;
         transitions[reject_state][i] = reject_state;
     }
 
-    // creez matricea de tranzitii in functie de flag-urile nodurilor
+    // generate the transition matrix based on the flags of the nodes
     check_nodes(root);
 
-    // scriu dfa pe prima linie, apoi numarul de stari, apoi 1 pt ca am o singura
-    // stare finala, starea initiala care e 2, apoi pe urmatoarea linie starea de accept adica 0
+    // write the DFA to the output file
     fout << "dfa\n";
     fout << num_states << " 1 " << initial_state << "\n";
     fout << accept_state << "\n";
 
-    // scriu matricea de tranzitii
+    // write the transition matrix
     for (int i = 0; i < num_states; i++) {
         for (int j = 0; j < 26; j++) {
             fout << transitions[i][j] << " ";
